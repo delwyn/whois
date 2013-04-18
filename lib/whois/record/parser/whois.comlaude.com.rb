@@ -8,6 +8,7 @@
 
 
 require 'whois/record/parser/base'
+require 'whois/record/scanners/whois.comlaude.com'
 
 
 module Whois
@@ -19,12 +20,13 @@ module Whois
       # @see Whois::Record::Parser::Example
       #   The Example parser for the list of all available methods.
       class WhoisComlaudeCom < Base
+        include Scanners::Nodable
 
         property_not_supported :status
 
         # The server is contacted only in case of a registered domain.
         property_supported :available? do
-          false
+          !!node("status:available")
         end
 
         property_supported :registered? do
@@ -33,25 +35,27 @@ module Whois
 
 
         property_supported :created_on do
-          if content_for_scanner =~ /Registered: (.+)\n/
-            Time.parse($1)
+          node('Registered') do |value|
+            Time.parse(value)
           end
         end
 
         property_not_supported :updated_on
 
         property_supported :expires_on do
-          if content_for_scanner =~ /Expires: (.+)\n/
-            Time.parse($1)
+          node('Expires') do |value|
+            Time.parse(value)
           end
         end
 
 
         property_supported :registrar do
-          Record::Registrar.new(
-            :name => "NOM IQ LTD (DBA COM LAUDE)",
-            :url  => "http://www.comlaude.com"
-          )
+          node("Registrar") do
+            Record::Registrar.new(
+              :name => "NOM IQ LTD (DBA COM LAUDE)",
+              :url  => "http://www.comlaude.com"
+            )
+          end
         end
 
         property_supported :registrant_contacts do
@@ -75,6 +79,14 @@ module Whois
           end
         end
 
+        # Initializes a new {Scanners::WhoisComlaudeCom} instance
+        # passing the {#content_for_scanner}
+        # and calls +parse+ on it.
+        #
+        # @return [Hash]
+        def parse
+          Scanners::WhoisComlaudeCom.new(content_for_scanner).parse
+        end
 
       private
 
